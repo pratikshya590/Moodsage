@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'core/routes.dart';
 import 'core/theme/app_theme.dart';
 
@@ -13,7 +14,7 @@ class MoodsageApp extends StatelessWidget {
       theme: AppTheme.light,
       // While building, the app opens on the Dev Menu.
       // Later we change this to AppRoutes.splash.
-      initialRoute: AppRoutes.devMenu,
+      initialRoute: AppRoutes.splash,
       routes: AppRoutes.routes,
     );
   }
