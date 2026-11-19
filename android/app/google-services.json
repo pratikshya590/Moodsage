@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "547507060700",
+    "project_id": "moodsage-bc874",
+    "storage_bucket": "moodsage-bc874.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:547507060700:android:e7fa42194633b2c3621919",
+        "android_client_info": {
+          "package_name": "com.pratikshya.moodsage"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCCwEHHIpPe8MkKVc7XEe3Mp9uxL1NM2Sw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
