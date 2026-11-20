@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { db } = require('./config/firebase');
 const verifyToken = require('./middleware/auth');
+const profileRoutes = require('./routes/profile');
 
 const app = express();
 app.use(cors());
@@ -22,6 +23,9 @@ app.get('/api/health', async (req, res) => {
 app.get('/api/me', verifyToken, (req, res) => {
   res.json({ uid: req.user.uid, email: req.user.email });
 });
+
+// Profile routes: /api/profile
+app.use('/api/profile', profileRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
