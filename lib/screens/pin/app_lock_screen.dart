@@ -67,8 +67,12 @@ class _AppLockScreenState extends State<AppLockScreen> {
       final correct = await PinService.instance.verifyPin(pin);
       if (!mounted) return;
 
-      if (correct) {
-        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (r) => false);
+            if (correct) {
+        // No name yet (skipped Personalize) → Personalize, otherwise → Home
+        final next = (_name == null || _name!.isEmpty)
+            ? AppRoutes.personalizeProfile
+            : AppRoutes.home;
+        Navigator.pushNamedAndRemoveUntil(context, next, (r) => false);
         return;
       }
 

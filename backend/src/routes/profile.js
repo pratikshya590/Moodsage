@@ -60,4 +60,47 @@ router.get('/', async (req, res) => {
   }
 });
 
+// PUT /api/profile → update name and/or photo
+router.put('/', async (req, res) => {
+  const { name, photoUrl } = req.body;
+  const update = {};
+
+  // Name: 1 to 40 characters
+  if (name !== undefined) {
+    if (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 40) {
+      return res.status(400).json({ error: 'Name must be 1 to 40 characters' });
+    }
+    update.name = name.trim();
+  }
+
+  // Photo: a small image sent as text (base64), or null to remove it
+  if (photoUrl !== undefined) {
+    const validImage =
+      photoUrl === null ||
+      (typeof photoUrl === 'string' &&
+        /^data:image\/(png|jpe?g|webp|gif);base64,/.test(photoUrl) &&
+        photoUrl.length <= 1000000);
+    if (!validImage) {
+      return res.status(400).json({ error: 'Photo is invalid or too large' });
+    }
+    update.photoUrl = photoUrl;
+  }
+
+  if (Object.keys(update).length === 0) {
+    return res.status(400).json({ error: 'Nothing to update' });
+  }
+
+  try {
+    update.updatedAt = FieldValue.serverTimestamp();
+    const ref = db.collection('users').doc(req.user.uid);
+    await ref.set(update, { merge: true });
+
+    const saved = await ref.get();
+    res.json(toProfile(req.user.uid, saved.data()));
+  } catch (err) {
+    console.error('Update profile error:', err);
+    res.status(500).json({ error: 'Could not save profile' });
+  }
+});
+
 module.exports = router;

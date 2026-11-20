@@ -16,4 +16,16 @@ class ProfileService {
     final data = await ApiService.instance.get('/profile');
     return UserProfile.fromJson(data as Map<String, dynamic>);
   }
+
+  /// Saves the name and (optional) photo through the backend
+  Future<UserProfile> updateProfile({
+    required String name,
+    String? photoDataUrl,
+  }) async {
+    final data = await ApiService.instance.put('/profile', {
+      'name': name,
+      if (photoDataUrl != null) 'photoUrl': photoDataUrl,
+    });
+    return UserProfile.fromJson(data as Map<String, dynamic>);
+  }
 }
