@@ -4,6 +4,7 @@ const cors = require('cors');
 const { db } = require('./config/firebase');
 const verifyToken = require('./middleware/auth');
 const profileRoutes = require('./routes/profile');
+const pinRoutes = require('./routes/pin');
 
 const app = express();
 app.use(cors());
@@ -24,8 +25,9 @@ app.get('/api/me', verifyToken, (req, res) => {
   res.json({ uid: req.user.uid, email: req.user.email });
 });
 
-// Profile routes: /api/profile
+// Routes
 app.use('/api/profile', profileRoutes);
+app.use('/api/pin', pinRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
