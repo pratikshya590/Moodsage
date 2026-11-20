@@ -6,6 +6,7 @@ import '../../core/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../widgets/app_logo.dart';
+import '../../services/auth_service.dart';
 
 // Shadow behind white text so it is readable on the picture
 const _textShadow = [
@@ -15,8 +16,14 @@ const _textShadow = [
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-  void _goToSignUp(BuildContext context) {
-    Navigator.pushReplacementNamed(context, AppRoutes.signUp);
+   // Logged in → App Lock (enter PIN). Not logged in → Sign Up.
+  Future<void> _goNext(BuildContext context) async {
+    final user = await AuthService.instance.waitForUser();
+    if (!context.mounted) return;
+    Navigator.pushReplacementNamed(
+      context,
+      user != null ? AppRoutes.appLock : AppRoutes.signUp,
+    );
   }
 
   @override
@@ -108,7 +115,7 @@ class SplashScreen extends StatelessWidget {
                   _beginButton(context),
                   const SizedBox(height: 10),
                   GestureDetector(
-                    onTap: () => _goToSignUp(context),
+                    onTap: () => _goNext(context),
                     child: Text(
                       'Tap to continue to Sign up',
                       style: AppTextStyles.splashScript.copyWith(
@@ -256,7 +263,7 @@ class SplashScreen extends StatelessWidget {
       width: 170,
       height: 46,
       child: ElevatedButton(
-        onPressed: () => _goToSignUp(context),
+        onPressed: () => _goNext(context),
         style: ElevatedButton.styleFrom(
           minimumSize: const Size(0, 46),
           padding: const EdgeInsets.symmetric(horizontal: 16),

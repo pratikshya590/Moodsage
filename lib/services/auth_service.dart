@@ -16,6 +16,8 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   User? get currentUser => _auth.currentUser;
+//
+Future<User?> waitForUser() => _auth.authStateChanges().first;
 
   Future<User> signUp(String email, String password) async {
     try {
