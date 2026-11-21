@@ -1,16 +1,17 @@
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  // Your laptop's Wi-Fi IP address, used when testing on a real Android phone.
-  // We will fill this in when we test on Android.
-  static const String _laptopIp = '192.168.1.100';
+  // ---- Choose where the backend is ----
+  // Android emulator: 10.0.2.2 means "the laptop running the emulator"
+  // Real phone on same Wi-Fi: use your laptop's Wi-Fi IP (e.g. 192.168.1.5)
+  static const String _androidHost = '10.0.2.2';
 
   static String get baseUrl {
     if (kIsWeb) {
-      // Running in Chrome on the same laptop as the backend
+      // Chrome on the same laptop as the backend
       return 'http://localhost:3000/api';
     }
-    // Running on an Android phone (same Wi-Fi as the laptop)
-    return 'http://$_laptopIp:3000/api';
+    // Android emulator or phone
+    return 'http://$_androidHost:3000/api';
   }
 }
