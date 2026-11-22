@@ -1,6 +1,5 @@
 const express = require('express');
-const { Timestamp } = require('firebase-admin/firestore');
-const { db } = require('../config/firebase');
+const pool = require('../config/db');
 const verifyToken = require('../middleware/auth');
 
 const router = express.Router();
@@ -14,22 +13,22 @@ const HELPED = ['breathing', 'music', 'movement', 'break', 'talked', 'other'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ---------- Helpers ----------
-function moodsRef(uid) {
-  return db.collection('users').doc(uid).collection('moods');
-}
 
-// Shape of one entry sent to the app
-function toEntry(doc) {
-  const d = doc.data();
+// Shape of one entry sent to the app (same as before the MySQL switch)
+function toEntry(row) {
+  let helped = row.what_helped;
+  if (typeof helped === 'string') {
+    try { helped = JSON.parse(helped); } catch { helped = []; }
+  }
   return {
-    id: doc.id,
-    mood: d.mood,
-    score: d.score,
-    trigger: d.trigger,
-    note: d.note ?? '',
-    whatHelped: d.whatHelped ?? [],
-    helpedNote: d.helpedNote ?? '',
-    createdAt: d.createdAt ? d.createdAt.toDate().toISOString() : null,
+    id: String(row.id),
+    mood: row.mood,
+    score: row.score,
+    trigger: row.trigger_key,
+    note: row.note ?? '',
+    whatHelped: Array.isArray(helped) ? helped : [],
+    helpedNote: row.helped_note ?? '',
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
   };
 }
 
@@ -53,11 +52,21 @@ function startOfRange(days, tz) {
 }
 
 async function entriesSince(uid, start) {
-  const snap = await moodsRef(uid)
-    .where('createdAt', '>=', Timestamp.fromDate(start))
-    .orderBy('createdAt', 'asc')
-    .get();
-  return snap.docs.map(toEntry);
+  const [rows] = await pool.query(
+    'SELECT * FROM moods WHERE user_id = ? AND created_at >= ? ORDER BY created_at ASC',
+    [uid, start]
+  );
+  return rows.map(toEntry);
+}
+
+// Entry IDs are numbers in MySQL
+function parseId(req, res) {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isInteger(id) || id <= 0) {
+    res.status(404).json({ error: 'Entry not found' });
+    return null;
+  }
+  return id;
 }
 
 // ---------- Routes ----------
@@ -77,17 +86,13 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const ref = await moodsRef(req.user.uid).add({
-      mood,
-      score: MOOD_SCORES[mood],
-      trigger,
-      note: (note || '').trim(),
-      whatHelped: [],
-      helpedNote: '',
-      createdAt: Timestamp.now(),
-    });
-    const doc = await ref.get();
-    res.status(201).json(toEntry(doc));
+    const [result] = await pool.query(
+      `INSERT INTO moods (user_id, mood, score, trigger_key, note, what_helped, helped_note, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, '', ?)`,
+      [req.user.uid, mood, MOOD_SCORES[mood], trigger, (note || '').trim(), '[]', new Date()]
+    );
+    const [rows] = await pool.query('SELECT * FROM moods WHERE id = ?', [result.insertId]);
+    res.status(201).json(toEntry(rows[0]));
   } catch (err) {
     console.error('Save mood error:', err);
     res.status(500).json({ error: 'Could not save your mood' });
@@ -99,22 +104,18 @@ router.get('/', async (req, res) => {
   const search = (req.query.search || '').toString().trim().toLowerCase();
 
   try {
-    const snap = await moodsRef(req.user.uid)
-      .orderBy('createdAt', 'desc')
-      .limit(200)
-      .get();
-    let entries = snap.docs.map(toEntry);
+    let sql = 'SELECT * FROM moods WHERE user_id = ?';
+    const params = [req.user.uid];
 
     if (search) {
-      entries = entries.filter(
-        (e) =>
-          e.note.toLowerCase().includes(search) ||
-          e.helpedNote.toLowerCase().includes(search) ||
-          e.trigger.includes(search) ||
-          e.mood.includes(search)
-      );
+      const like = `%${search}%`;
+      sql += ' AND (note LIKE ? OR helped_note LIKE ? OR trigger_key LIKE ? OR mood LIKE ?)';
+      params.push(like, like, like, like);
     }
-    res.json(entries);
+    sql += ' ORDER BY created_at DESC LIMIT 200';
+
+    const [rows] = await pool.query(sql, params);
+    res.json(rows.map(toEntry));
   } catch (err) {
     console.error('List moods error:', err);
     res.status(500).json({ error: 'Could not load your history' });
@@ -153,9 +154,7 @@ router.get('/summary', async (req, res) => {
       daysLogged: new Set(entries.map(dayOf)).size,
       totalEntries: entries.length,
       topMood: topMood ? { mood: topMood.value, days: topMood.count } : null,
-      topTrigger: topTrigger
-        ? { trigger: topTrigger.value, days: topTrigger.count }
-        : null,
+      topTrigger: topTrigger ? { trigger: topTrigger.value, days: topTrigger.count } : null,
     });
   } catch (err) {
     console.error('Summary error:', err);
@@ -199,10 +198,16 @@ router.get('/chart', async (req, res) => {
 
 // GET /api/moods/:id → one entry (Entry Detail screen)
 router.get('/:id', async (req, res) => {
+  const id = parseId(req, res);
+  if (id === null) return;
+
   try {
-    const doc = await moodsRef(req.user.uid).doc(req.params.id).get();
-    if (!doc.exists) return res.status(404).json({ error: 'Entry not found' });
-    res.json(toEntry(doc));
+    const [rows] = await pool.query('SELECT * FROM moods WHERE id = ? AND user_id = ?', [
+      id,
+      req.user.uid,
+    ]);
+    if (rows.length === 0) return res.status(404).json({ error: 'Entry not found' });
+    res.json(toEntry(rows[0]));
   } catch (err) {
     console.error('Get mood error:', err);
     res.status(500).json({ error: 'Could not load this entry' });
@@ -211,10 +216,11 @@ router.get('/:id', async (req, res) => {
 
 // PUT /api/moods/:id/helped → save "What helped" (What Helped screen)
 router.put('/:id/helped', async (req, res) => {
-  const { whatHelped, helpedNote } = req.body;
+  const id = parseId(req, res);
+  if (id === null) return;
 
-  const validList =
-    Array.isArray(whatHelped) && whatHelped.every((h) => HELPED.includes(h));
+  const { whatHelped, helpedNote } = req.body;
+  const validList = Array.isArray(whatHelped) && whatHelped.every((h) => HELPED.includes(h));
   if (!validList) {
     return res.status(400).json({ error: 'Invalid "what helped" options' });
   }
@@ -223,15 +229,14 @@ router.put('/:id/helped', async (req, res) => {
   }
 
   try {
-    const ref = moodsRef(req.user.uid).doc(req.params.id);
-    const doc = await ref.get();
-    if (!doc.exists) return res.status(404).json({ error: 'Entry not found' });
+    const [result] = await pool.query(
+      'UPDATE moods SET what_helped = ?, helped_note = ? WHERE id = ? AND user_id = ?',
+      [JSON.stringify([...new Set(whatHelped)]), (helpedNote || '').trim(), id, req.user.uid]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Entry not found' });
 
-    await ref.update({
-      whatHelped: [...new Set(whatHelped)],
-      helpedNote: (helpedNote || '').trim(),
-    });
-    res.json(toEntry(await ref.get()));
+    const [rows] = await pool.query('SELECT * FROM moods WHERE id = ?', [id]);
+    res.json(toEntry(rows[0]));
   } catch (err) {
     console.error('Save what helped error:', err);
     res.status(500).json({ error: 'Could not save what helped' });
@@ -240,12 +245,15 @@ router.put('/:id/helped', async (req, res) => {
 
 // DELETE /api/moods/:id → delete an entry (Entry Detail screen)
 router.delete('/:id', async (req, res) => {
-  try {
-    const ref = moodsRef(req.user.uid).doc(req.params.id);
-    const doc = await ref.get();
-    if (!doc.exists) return res.status(404).json({ error: 'Entry not found' });
+  const id = parseId(req, res);
+  if (id === null) return;
 
-    await ref.delete();
+  try {
+    const [result] = await pool.query('DELETE FROM moods WHERE id = ? AND user_id = ?', [
+      id,
+      req.user.uid,
+    ]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Entry not found' });
     res.json({ success: true });
   } catch (err) {
     console.error('Delete mood error:', err);

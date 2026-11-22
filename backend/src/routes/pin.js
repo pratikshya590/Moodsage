@@ -1,7 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { FieldValue } = require('firebase-admin/firestore');
-const { db } = require('../config/firebase');
+const pool = require('../config/db');
 const verifyToken = require('../middleware/auth');
 
 const router = express.Router();
@@ -21,14 +20,14 @@ router.post('/', async (req, res) => {
 
   try {
     const pinHash = await bcrypt.hash(pin, 10);
-    await db.collection('users').doc(req.user.uid).set(
-      {
-        pinHash,
-        hasPin: true,
-        pinUpdatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true }
+    const [result] = await pool.query(
+      'UPDATE users SET pin_hash = ?, has_pin = TRUE, pin_updated_at = ? WHERE uid = ?',
+      [pinHash, new Date(), req.user.uid]
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
     res.json({ success: true });
   } catch (err) {
     console.error('Set PIN error:', err);
@@ -44,8 +43,10 @@ router.post('/verify', async (req, res) => {
   }
 
   try {
-    const snap = await db.collection('users').doc(req.user.uid).get();
-    const pinHash = snap.exists ? snap.data().pinHash : null;
+    const [rows] = await pool.query('SELECT pin_hash FROM users WHERE uid = ?', [
+      req.user.uid,
+    ]);
+    const pinHash = rows[0]?.pin_hash;
 
     if (!pinHash) {
       return res.status(404).json({ error: 'No PIN set' });

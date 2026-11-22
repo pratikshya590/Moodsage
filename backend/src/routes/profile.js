@@ -1,6 +1,5 @@
 const express = require('express');
-const { FieldValue } = require('firebase-admin/firestore');
-const { db } = require('../config/firebase');
+const pool = require('../config/db');
 const verifyToken = require('../middleware/auth');
 
 const router = express.Router();
@@ -9,35 +8,35 @@ const router = express.Router();
 router.use(verifyToken);
 
 // Shape of the profile sent back to the app (never send secrets like the PIN)
-function toProfile(uid, data) {
+function toProfile(row) {
   return {
-    uid,
-    email: data.email,
-    name: data.name ?? null,
-    photoUrl: data.photoUrl ?? null,
-    hasPin: data.hasPin === true,
+    uid: row.uid,
+    email: row.email,
+    name: row.name ?? null,
+    photoUrl: row.photo_url ?? null,
+    hasPin: row.has_pin === 1 || row.has_pin === true,
   };
 }
 
-// POST /api/profile → create the profile after sign up
-// (safe to call twice: it won't overwrite an existing profile)
+// Make sure the logged-in user has a row in the users table
+async function ensureUser(uid, email) {
+  await pool.query(
+    'INSERT IGNORE INTO users (uid, email, created_at) VALUES (?, ?, ?)',
+    [uid, email, new Date()]
+  );
+}
+
+async function findUser(uid) {
+  const [rows] = await pool.query('SELECT * FROM users WHERE uid = ?', [uid]);
+  return rows[0];
+}
+
+// POST /api/profile → create the profile after sign up (safe to call twice)
 router.post('/', async (req, res) => {
   try {
-    const ref = db.collection('users').doc(req.user.uid);
-    const snap = await ref.get();
-
-    if (!snap.exists) {
-      await ref.set({
-        email: req.user.email,
-        name: null,
-        photoUrl: null,
-        hasPin: false,
-        createdAt: FieldValue.serverTimestamp(),
-      });
-    }
-
-    const saved = await ref.get();
-    res.status(201).json(toProfile(req.user.uid, saved.data()));
+    await ensureUser(req.user.uid, req.user.email);
+    const user = await findUser(req.user.uid);
+    res.status(201).json(toProfile(user));
   } catch (err) {
     console.error('Create profile error:', err);
     res.status(500).json({ error: 'Could not create profile' });
@@ -45,15 +44,12 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/profile → get the logged-in user's profile
+// (creates it if missing, e.g. an account made before the MySQL switch)
 router.get('/', async (req, res) => {
   try {
-    const snap = await db.collection('users').doc(req.user.uid).get();
-
-    if (!snap.exists) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
-
-    res.json(toProfile(req.user.uid, snap.data()));
+    await ensureUser(req.user.uid, req.user.email);
+    const user = await findUser(req.user.uid);
+    res.json(toProfile(user));
   } catch (err) {
     console.error('Get profile error:', err);
     res.status(500).json({ error: 'Could not load profile' });
@@ -63,14 +59,16 @@ router.get('/', async (req, res) => {
 // PUT /api/profile → update name and/or photo
 router.put('/', async (req, res) => {
   const { name, photoUrl } = req.body;
-  const update = {};
+  const fields = [];
+  const values = [];
 
   // Name: 1 to 40 characters
   if (name !== undefined) {
     if (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 40) {
       return res.status(400).json({ error: 'Name must be 1 to 40 characters' });
     }
-    update.name = name.trim();
+    fields.push('name = ?');
+    values.push(name.trim());
   }
 
   // Photo: a small image sent as text (base64), or null to remove it
@@ -83,20 +81,22 @@ router.put('/', async (req, res) => {
     if (!validImage) {
       return res.status(400).json({ error: 'Photo is invalid or too large' });
     }
-    update.photoUrl = photoUrl;
+    fields.push('photo_url = ?');
+    values.push(photoUrl);
   }
 
-  if (Object.keys(update).length === 0) {
+  if (fields.length === 0) {
     return res.status(400).json({ error: 'Nothing to update' });
   }
 
   try {
-    update.updatedAt = FieldValue.serverTimestamp();
-    const ref = db.collection('users').doc(req.user.uid);
-    await ref.set(update, { merge: true });
+    await ensureUser(req.user.uid, req.user.email);
+    fields.push('updated_at = ?');
+    values.push(new Date(), req.user.uid);
 
-    const saved = await ref.get();
-    res.json(toProfile(req.user.uid, saved.data()));
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE uid = ?`, values);
+    const user = await findUser(req.user.uid);
+    res.json(toProfile(user));
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(500).json({ error: 'Could not save profile' });
