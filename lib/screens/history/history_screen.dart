@@ -116,7 +116,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // ---------- Logo + "Your History" ----------
+  // ---------- Logo + "Your History" + Mood chart button ----------
   Widget _header() {
     return Stack(
       children: [
@@ -143,6 +143,27 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     color: AppColors.mediumGreen,
                   ),
                   textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Clear button to open the mood chart
+              OutlinedButton.icon(
+                onPressed: () => Navigator.pushNamed(context, AppRoutes.moodChart),
+                icon: const Icon(Icons.show_chart, size: 22),
+                label: const Text('View your mood chart'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.darkGreen,
+                  backgroundColor: const Color(0xFFEAF3DC),
+                  side: const BorderSide(color: AppColors.lightGreenBorder, width: 1.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  textStyle: AppTextStyles.body.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
