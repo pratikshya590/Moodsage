@@ -7,6 +7,7 @@ const profileRoutes = require('./routes/profile');
 const pinRoutes = require('./routes/pin');
 const moodRoutes = require('./routes/moods');
 const recoveryRoutes = require('./routes/recovery');
+const pageRoutes = require('./routes/pages');
 
 const app = express();
 app.use(cors());
@@ -38,6 +39,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/pin', pinRoutes);
 app.use('/api/moods', moodRoutes);
 app.use('/api/recovery', recoveryRoutes); // no login needed (forgot password / PIN)
+app.use('/', pageRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
