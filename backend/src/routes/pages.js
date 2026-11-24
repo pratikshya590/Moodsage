@@ -49,3 +49,37 @@ router.get('/privacy', (req, res) => {
     a one-time code by email if you forget your password or PIN.</p>
 
     <h2>Emails</h2>
+        <p>Moodsage sends account recovery codes from moodsage6@gmail.com. We use Gmail only to
+    send these codes. We do not read your mailbox.</p>
+
+    <h2>Storage and security</h2>
+    <p>Data is stored in a MySQL-compatible cloud database over encrypted connections.
+    PINs and recovery codes are stored as hashes, never in plain text.
+    Each user can only access their own data.</p>
+
+    <h2>Sharing</h2>
+    <p>We do not sell or share your data with anyone.</p>
+
+    <h2>Deleting your data</h2>
+    <p>You can clear your mood data in the app's Settings, or email moodsage6@gmail.com
+    to have your account deleted.</p>
+
+    <h2>Contact</h2>
+    <p>moodsage6@gmail.com</p>
+  `));
+});
+
+router.get('/terms', (req, res) => {
+  res.send(page('Terms of service', `
+    <h1>Terms of service</h1>
+    <p>Last updated: November 2026</p>
+    <p>Moodsage is a student project provided for learning and demonstration purposes, as is,
+    without any guarantee.</p>
+    <p>Moodsage is not a medical service and does not replace professional help.
+    If you are struggling, please contact a health professional or a local support service.</p>
+    <p>Please use the app responsibly and do not misuse it or try to access other users' data.</p>
+    <p>Contact: moodsage6@gmail.com</p>
+  `));
+});
+
+module.exports = router;
