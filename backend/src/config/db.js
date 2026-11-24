@@ -1,16 +1,18 @@
 const mysql = require('mysql2/promise');
 
-// A "pool" keeps a few connections open and reuses them (faster than
-// opening a new connection for every request).
+// Cloud MySQL (TiDB) needs an encrypted connection; local MySQL does not.
+const useSsl = process.env.DB_SSL === 'true';
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT) || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'moodsage',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  timezone: 'Z', // store and read all dates in UTC
+  timezone: 'Z', // store and read all dates as UTC
+  ...(useSsl && { ssl: { minVersion: 'TLSv1.2', rejectUnauthorized: true } }),
 });
 
 module.exports = pool;
