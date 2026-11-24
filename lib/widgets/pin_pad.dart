@@ -2,18 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/app_colors.dart';
 
-/// 4 dots + number keypad (1-9, backspace, 0, OK).
+/// 4 dots + number keypad.
 /// Used by PIN Setup, App Lock and Set New PIN.
+///  - showOkKey: true  → OK key on the keypad calls onSubmit (PIN Setup, App Lock)
+///  - showOkKey: false → no OK key; the screen reads [PinPadState.pin] (Set New PIN)
 class PinPad extends StatefulWidget {
   final int length;
-  final ValueChanged<String> onSubmit;
+  final ValueChanged<String>? onSubmit;
+  final ValueChanged<String>? onChanged;
   final bool enabled;
+  final bool showOkKey;
 
   const PinPad({
     super.key,
     this.length = 4,
-    required this.onSubmit,
+    this.onSubmit,
+    this.onChanged,
     this.enabled = true,
+    this.showOkKey = true,
   });
 
   @override
@@ -23,17 +29,25 @@ class PinPad extends StatefulWidget {
 class PinPadState extends State<PinPad> {
   String _pin = '';
 
+  /// The digits typed so far
+  String get pin => _pin;
+
   /// Clears the dots (called by the screen after a wrong PIN etc.)
-  void clear() => setState(() => _pin = '');
+  void clear() {
+    setState(() => _pin = '');
+    widget.onChanged?.call(_pin);
+  }
 
   void _addDigit(String digit) {
     if (!widget.enabled || _pin.length >= widget.length) return;
     setState(() => _pin += digit);
+    widget.onChanged?.call(_pin);
   }
 
   void _backspace() {
     if (!widget.enabled || _pin.isEmpty) return;
     setState(() => _pin = _pin.substring(0, _pin.length - 1));
+    widget.onChanged?.call(_pin);
   }
 
   void _ok() {
@@ -44,7 +58,7 @@ class PinPadState extends State<PinPad> {
       );
       return;
     }
-    widget.onSubmit(_pin);
+    widget.onSubmit?.call(_pin);
   }
 
   @override
@@ -60,7 +74,11 @@ class PinPadState extends State<PinPad> {
         const SizedBox(height: 22),
         _row([_digitKey('7'), _digitKey('8'), _digitKey('9')]),
         const SizedBox(height: 22),
-        _row([_backspaceKey(), _digitKey('0'), _okKey()]),
+        _row([
+          _backspaceKey(),
+          _digitKey('0'),
+          widget.showOkKey ? _okKey() : const SizedBox(width: 56),
+        ]),
       ],
     );
   }
@@ -77,8 +95,8 @@ class PinPadState extends State<PinPad> {
           height: 22,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: filled ? AppColors.mediumGreen : Colors.transparent,
-            border: Border.all(color: AppColors.mediumGreen, width: 3),
+            color: filled ? AppColors.darkGreen : Colors.transparent,
+            border: Border.all(color: AppColors.mediumGreen, width: 2.5),
           ),
         );
       }),
