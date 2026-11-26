@@ -16,7 +16,7 @@ const _textShadow = [
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
-   // Logged in → App Lock (enter PIN). Not logged in → Sign Up.
+  // Logged in → App Lock (enter PIN). Not logged in → Sign Up.
   Future<void> _goNext(BuildContext context) async {
     final user = await AuthService.instance.waitForUser();
     if (!context.mounted) return;
@@ -260,7 +260,7 @@ class SplashScreen extends StatelessWidget {
   // Green "LET'S BEGIN →" button (lighter text)
   Widget _beginButton(BuildContext context) {
     return SizedBox(
-      width: 170,
+      width: 200,
       height: 46,
       child: ElevatedButton(
         onPressed: () => _goNext(context),
