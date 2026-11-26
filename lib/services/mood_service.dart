@@ -110,6 +110,12 @@ class MoodService {
     await ApiService.instance.delete('/moods/$id');
   }
 
+
+  /// Settings: delete ALL of the user's entries (Reset app data)
+  Future<void> deleteAllEntries() async {
+    await ApiService.instance.delete('/moods');
+  }
+  
   /// Mood Chart: 7 or 30 days
   Future<List<ChartPoint>> getChart(int days) async {
     final data = await ApiService.instance.get('/moods/chart?days=$days&$_tz');

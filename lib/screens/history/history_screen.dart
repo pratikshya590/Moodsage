@@ -165,6 +165,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+
+              ),
+
+                            const SizedBox(height: 6),
+              TextButton.icon(
+                onPressed: () => Navigator.pushNamed(context, AppRoutes.weeklySummary),
+                icon: const Icon(Icons.insights, size: 20),
+                label: const Text("See this week's summary"),
+                style: TextButton.styleFrom(foregroundColor: AppColors.linkGreen),
               ),
             ],
           ),
