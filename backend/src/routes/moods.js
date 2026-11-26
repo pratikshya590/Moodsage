@@ -261,4 +261,15 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/moods → delete ALL of the user's entries (Settings → Reset app data)
+router.delete('/', async (req, res) => {
+  try {
+    const [result] = await pool.query('DELETE FROM moods WHERE user_id = ?', [req.user.uid]);
+    res.json({ success: true, deleted: result.affectedRows });
+  } catch (err) {
+    console.error('Reset moods error:', err);
+    res.status(500).json({ error: 'Could not reset your data' });
+  }
+});
+
 module.exports = router;
