@@ -8,7 +8,6 @@ import '../../core/theme/app_text_styles.dart';
 import '../../models/mood_entry.dart';
 import '../../services/api_service.dart';
 import '../../services/mood_service.dart';
-import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/leaf_background.dart';
 import '../../widgets/mood_emoji.dart';
@@ -16,6 +15,7 @@ import '../../widgets/mood_emoji.dart';
 // Entry Detail screen. Owner: Kripa K.C (Person B)
 // Opened from History with the entry id:
 //   Navigator.pushNamed(context, AppRoutes.entryDetail, arguments: entry.id);
+// Shows date, time, mood, trigger, note and what helped. The entry can be deleted.
 class EntryDetailScreen extends StatefulWidget {
   const EntryDetailScreen({super.key});
 
@@ -24,6 +24,11 @@ class EntryDetailScreen extends StatefulWidget {
 }
 
 class _EntryDetailScreenState extends State<EntryDetailScreen> {
+  // Colours from the Figma design
+  static const _chipFill = Color(0xFFE6E3E0); // trigger chip
+  static const _deleteFill = Color(0xFFF0D9D9); // pink delete button
+  static const _deleteBorder = Color(0xFF6B7A4A);
+
   bool _started = false; // makes sure we read the id only once
   String? _id;
   MoodEntry? _entry;
@@ -79,6 +84,15 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     }
   }
 
+  // Back if there is a page behind, otherwise go to History
+  void _goBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.history, (r) => false);
+    }
+  }
+
   // Ask first, then delete and go back to History
   Future<void> _confirmDelete() async {
     final ok = await showDialog<bool>(
@@ -108,7 +122,7 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Entry deleted')),
       );
-      Navigator.pop(context, true); // History reloads when we come back
+      _goBack(); // History reloads when we come back
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _deleting = false);
@@ -127,14 +141,12 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // -1 = no tab selected (this page is opened from History)
-      bottomNavigationBar: const AppBottomNav(currentIndex: -1),
       body: LeafBackground(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             _header(),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             ..._body(),
           ],
         ),
@@ -142,29 +154,25 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     );
   }
 
-  // ---------- Back arrow + logo + "Your Entry" ----------
+  // ---------- Back arrow + logo ----------
   Widget _header() {
-    return Stack(
-      children: [
-        Align(
-          alignment: Alignment.topLeft,
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.maybePop(context),
+    return SizedBox(
+      height: 110,
+      child: Stack(
+        children: [
+          Align(
+            alignment: Alignment.topLeft,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, size: 24),
+              onPressed: _goBack,
+            ),
           ),
-        ),
-        const Align(
-          alignment: Alignment.topRight,
-          child: AppLogo(height: 100),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 120, left: 8),
-          child: Text(
-            'Your Entry',
-            style: AppTextStyles.heading.copyWith(fontSize: 38),
+          const Align(
+            alignment: Alignment.topRight,
+            child: AppLogo(height: 100),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -196,188 +204,180 @@ class _EntryDetailScreenState extends State<EntryDetailScreen> {
     }
 
     final entry = _entry!;
-    final mood = AppMoods.byKey(entry.mood);
-    final trigger = AppTriggers.byKey(entry.trigger);
-
     return [
-      _moodCard(entry, mood),
-      const SizedBox(height: 16),
-      _section(
-        title: "What's behind it?",
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: _chip(trigger.icon, trigger.label),
-        ),
-      ),
-      const SizedBox(height: 16),
-      _section(
-        title: 'Your note',
-        child: Text(
-          entry.note.isEmpty ? 'No note added.' : entry.note,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 16,
-            height: 1.4,
-            color: entry.note.isEmpty ? AppColors.greyText : AppColors.textDark,
-          ),
-        ),
-      ),
-      const SizedBox(height: 16),
-      _section(title: 'What helped', child: _whatHelped(entry)),
-      const SizedBox(height: 28),
-      _deleteButton(),
+      Center(child: _topCard(entry)),
+      const SizedBox(height: 22),
+      _noteCard(entry),
+      const SizedBox(height: 26),
+      _whatHelpedCard(entry),
+      const SizedBox(height: 36),
+      Center(child: _deleteButton()),
     ];
   }
 
-  // ---------- Big card: emoji + mood name + date ----------
-  Widget _moodCard(MoodEntry entry, MoodOption mood) {
+  // ---------- Date + time, emoji, trigger chip ----------
+  Widget _topCard(MoodEntry entry) {
+    final mood = AppMoods.byKey(entry.mood);
+    final trigger = AppTriggers.byKey(entry.trigger);
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: 260,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
       decoration: _cardDecoration(),
-      child: Row(
+      child: Column(
         children: [
-          MoodEmoji(mood: mood, size: 64),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Feeling ${mood.label}',
-                  style: AppTextStyles.heading.copyWith(fontSize: 26),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Text(
+                DateFormat('MMM d, y').format(entry.createdAt),
+                style: GoogleFonts.inter(fontSize: 14, color: AppColors.mediumGreen),
+              ),
+              Text(
+                DateFormat('h:mm a').format(entry.createdAt),
+                style: GoogleFonts.inter(fontSize: 14, color: AppColors.mediumGreen),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              MoodEmoji(mood: mood, size: 50),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _chipFill,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.lightGreenBorder, width: 1.5),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormat('EEEE, d MMMM y').format(entry.createdAt),
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.darkGreen,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(trigger.icon, size: 20, color: Colors.black87),
+                    const SizedBox(width: 6),
+                    Text(
+                      trigger.label,
+                      style: GoogleFonts.inter(fontSize: 15, color: AppColors.darkGreen),
+                    ),
+                  ],
                 ),
-                Text(
-                  DateFormat('h:mm a').format(entry.createdAt),
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 14,
-                    color: AppColors.mediumGreen,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // ---------- "What helped" list (or a button to add it) ----------
-  Widget _whatHelped(MoodEntry entry) {
-    if (entry.whatHelped.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Nothing added yet.',
-            style: AppTextStyles.body.copyWith(color: AppColors.greyText),
-          ),
-          const SizedBox(height: 4),
-          TextButton.icon(
-            onPressed: _openWhatHelped,
-            icon: const Icon(Icons.add_circle_outline),
-            label: const Text('Add what helped'),
-            style: TextButton.styleFrom(foregroundColor: AppColors.linkGreen),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: entry.whatHelped.map((key) {
-            final option = AppHelped.byKey(key);
-            return _chip(option.icon, option.label);
-          }).toList(),
+  // ---------- "Your Note" ----------
+  Widget _noteCard(MoodEntry entry) {
+    return _section(
+      icon: const Icon(Icons.assignment, size: 30, color: Color(0xFF5A5A5A)),
+      title: 'Your Note',
+      child: Text(
+        entry.note.isEmpty ? 'No note added.' : entry.note,
+        style: _bodyText.copyWith(
+          color: entry.note.isEmpty ? AppColors.greyText : AppColors.mediumGreen,
         ),
-        if (entry.helpedNote.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Text(
-            entry.helpedNote,
-            style: AppTextStyles.body.copyWith(fontSize: 15, height: 1.4),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
-  // ---------- Red "Delete entry" button ----------
+  // ---------- "What helped" (as a sentence) ----------
+  Widget _whatHelpedCard(MoodEntry entry) {
+    final labels = entry.whatHelped.map((k) => AppHelped.byKey(k).label).toList();
+    final hasAnything = labels.isNotEmpty || entry.helpedNote.isNotEmpty;
+
+    return _section(
+      icon: const Icon(Icons.favorite_border, size: 26, color: Color(0xFFE53935)),
+      title: 'What helped',
+      child: hasAnything
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (labels.isNotEmpty) Text('${labels.join(', ')}.', style: _bodyText),
+                if (entry.helpedNote.isNotEmpty) ...[
+                  if (labels.isNotEmpty) const SizedBox(height: 8),
+                  Text(entry.helpedNote, style: _bodyText),
+                ],
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Nothing added yet.',
+                  style: _bodyText.copyWith(color: AppColors.greyText),
+                ),
+                const SizedBox(height: 4),
+                TextButton.icon(
+                  onPressed: _openWhatHelped,
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Add what helped'),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.linkGreen),
+                ),
+              ],
+            ),
+    );
+  }
+
+  // ---------- Pink "Delete" button ----------
   Widget _deleteButton() {
-    return Center(
-      child: OutlinedButton.icon(
+    return SizedBox(
+      width: 260,
+      height: 52,
+      child: OutlinedButton(
         onPressed: _deleting ? null : _confirmDelete,
-        icon: const Icon(Icons.delete_outline),
-        label: Text(_deleting ? 'Deleting...' : 'Delete entry'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.error,
-          side: const BorderSide(color: AppColors.error, width: 1.5),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          textStyle: AppTextStyles.body.copyWith(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
+          backgroundColor: _deleteFill,
+          side: const BorderSide(color: _deleteBorder, width: 1.2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.delete_outline, color: Color(0xFFE53935)),
+            const SizedBox(width: 10),
+            Text(
+              _deleting ? 'Deleting...' : 'Delete',
+              style: AppTextStyles.heading.copyWith(fontSize: 20),
+            ),
+          ],
         ),
       ),
     );
   }
 
   // ---------- Small helpers ----------
-  Widget _section({required String title, required Widget child}) {
+  Widget _section({required Widget icon, required String title, required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
       decoration: _cardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.darkGreen,
-            ),
+          Row(
+            children: [
+              icon,
+              const SizedBox(width: 12),
+              Text(title, style: AppTextStyles.heading.copyWith(fontSize: 26)),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           child,
         ],
       ),
     );
   }
 
-  Widget _chip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF3DC),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightGreenBorder),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: AppColors.darkGreen),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(fontSize: 14, color: AppColors.darkGreen),
-          ),
-        ],
-      ),
-    );
-  }
+  TextStyle get _bodyText => GoogleFonts.inter(
+        fontSize: 15,
+        height: 1.5,
+        letterSpacing: 0.6,
+        color: AppColors.mediumGreen,
+      );
 
   BoxDecoration _cardDecoration() {
     return BoxDecoration(
