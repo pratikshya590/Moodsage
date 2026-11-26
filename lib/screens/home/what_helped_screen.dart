@@ -14,7 +14,7 @@ import '../../widgets/primary_button.dart';
 // What Helped screen. Owner: Deepsuma Dhakal (Person C)
 // Opened right after saving a mood on Home (and from Entry Detail) with the entry id:
 //   Navigator.pushNamed(context, AppRoutes.whatHelped, arguments: entry.id);
-// After Submit (or Skip) it continues to the Suggestions screen.
+// After Submit it goes back (Home or Entry Detail). After Skip it opens Suggestions.
 class WhatHelpedScreen extends StatefulWidget {
   const WhatHelpedScreen({super.key});
 
@@ -77,7 +77,7 @@ class _WhatHelpedScreenState extends State<WhatHelpedScreen> {
     });
   }
 
-  // Save the ticked options + note for this entry
+  // Submit: save the ticked options + note, then go back (Home or Entry Detail)
   Future<void> _submit() async {
     if (_selected.isEmpty && _noteCtrl.text.trim().isEmpty) {
       _showMessage('Choose at least one option, or tap "Skip for now".', error: true);
@@ -99,7 +99,9 @@ class _WhatHelpedScreenState extends State<WhatHelpedScreen> {
       await MoodService.instance.saveWhatHelped(_id!, keys, _noteCtrl.text.trim());
       if (!mounted) return;
       _showMessage('Saved. Thank you for reflecting 🌿');
-      _goToSuggestions();
+
+      // They already know what helps → back to the screen before (Home or Entry Detail)
+      Navigator.pop(context);
     } on ApiException catch (e) {
       if (!mounted) return;
       _showMessage(e.message, error: true);
@@ -111,8 +113,8 @@ class _WhatHelpedScreenState extends State<WhatHelpedScreen> {
     }
   }
 
-  // Next screen: personalised suggestions for this entry
-  void _goToSuggestions() {
+  // Skip: nothing saved → show personalised suggestions for this entry
+  void _skipToSuggestions() {
     Navigator.pushReplacementNamed(context, AppRoutes.suggestions, arguments: _id);
   }
 
@@ -382,7 +384,7 @@ class _WhatHelpedScreenState extends State<WhatHelpedScreen> {
     return SizedBox(
       width: 290,
       child: OutlinedButton(
-        onPressed: _saving ? null : _goToSuggestions,
+        onPressed: _saving ? null : _skipToSuggestions,
         style: OutlinedButton.styleFrom(
           backgroundColor: _cream,
           side: const BorderSide(color: Color(0xFF4E6B2E), width: 1.2),
