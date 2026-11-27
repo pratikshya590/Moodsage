@@ -6,14 +6,14 @@ import '../../core/theme/app_text_styles.dart';
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/mood_service.dart';
+import '../../services/reminder_service.dart';
 import '../../widgets/app_bottom_nav.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/leaf_background.dart';
 
 // Settings screen. Owner: Kripa K.C (Person B)
 // Daily reminder (on/off + time), Change PIN, Log out, Reset app data.
-// Note: the reminder choice is kept while the app is open; sending the actual
-// notification is added with the notifications task (Sprint 4).
+// The daily reminder is a local notification (ReminderService, added by Pratikshya).
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -30,32 +30,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const _pinkCircle = Color(0xFFF2CFCF);
   static const _red = Color(0xFFD32F2F);
 
-  // Kept while the app is open (static = survives leaving this screen)
-  static bool _reminderOn = true;
-  static TimeOfDay _reminderTime = const TimeOfDay(hour: 20, minute: 0);
+  // Saved on the phone by ReminderService (stays after closing the app)
+  bool _reminderOn = ReminderService.instance.enabled;
+  TimeOfDay _reminderTime = ReminderService.instance.time;
 
   bool _busy = false; // true while resetting data or logging out
 
-  // ---------- Actions ----------
+  // ---------- Daily reminder ----------
 
-  void _toggleReminder(bool on) {
-    setState(() => _reminderOn = on);
-    _showMessage(
-      on
-          ? 'Daily reminder on at ${_reminderTime.format(context)}'
-          : 'Daily reminder off',
-    );
+  Future<void> _toggleReminder(bool on) async {
+    final active = await ReminderService.instance.update(on: on, at: _reminderTime);
+    if (!mounted) return;
+    setState(() => _reminderOn = active);
+    _showReminderMessage(on: on, active: active);
   }
 
   Future<void> _pickTime() async {
     final picked = await showTimePicker(context: context, initialTime: _reminderTime);
     if (picked == null || !mounted) return;
+    final active = await ReminderService.instance.update(on: true, at: picked);
+    if (!mounted) return;
     setState(() {
       _reminderTime = picked;
-      _reminderOn = true;
+      _reminderOn = active;
     });
-    _showMessage('Daily reminder set for ${picked.format(context)}');
+    _showReminderMessage(on: true, active: active);
   }
+
+  void _showReminderMessage({required bool on, required bool active}) {
+    if (!on) {
+      _showMessage('Daily reminder off');
+    } else if (!ReminderService.instance.supported) {
+      _showMessage('Saved. Reminders work in the Android app.');
+    } else if (active) {
+      _showMessage('Daily reminder set for ${_reminderTime.format(context)}');
+    } else {
+      _showMessage('Please allow notifications for Moodsage in your phone settings.',
+          error: true);
+    }
+  }
+
+  // ---------- Other actions ----------
 
   Future<void> _openChangePin() async {
     // No reset token = "Settings mode": saves the new PIN and comes back here
