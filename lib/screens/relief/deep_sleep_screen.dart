@@ -426,7 +426,7 @@ class _DeepSleepScreenState extends State<DeepSleepScreen> {
       child: Center(child: Icon(sound.icon, size: 34, color: Colors.white70)),
     );
 
-    if (_hasImage[sound.id] != true) return placeholder;
+    if (_hasImage[sound.id] == false) return placeholder;
 
     return Image.asset(
       sound.image,

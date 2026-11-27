@@ -47,70 +47,10 @@ class _InstantCalmScreenState extends State<InstantCalmScreen> {
   void _openMusic([String? sound]) =>
       Navigator.pushNamed(context, AppRoutes.deepSleep, arguments: sound);
 
-  void _showYoga() {
-    const steps = [
-      ('Easy seated pose, slow breaths', '1 minute'),
-      ('Neck and shoulder rolls', '1 minute'),
-      ('Cat–cow stretch', '1 minute'),
-      ('Seated forward fold', '1 minute'),
-      ("Child's pose", '1 minute'),
-    ];
-
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Gentle Yoga · 5 minutes',
-                style: AppTextStyles.heading.copyWith(fontSize: 24)),
-            const SizedBox(height: 4),
-            Text(
-              'Move slowly, breathe deeply and stop if anything hurts.',
-              style: AppTextStyles.body.copyWith(color: AppColors.mediumGreen),
-            ),
-            const SizedBox(height: 16),
-            for (var i = 0; i < steps.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor: AppColors.primaryGreen,
-                      child: Text(
-                        '${i + 1}',
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(steps[i].$1, style: AppTextStyles.body)),
-                    Text(
-                      steps[i].$2,
-                      style: AppTextStyles.body.copyWith(
-                        fontSize: 13,
-                        color: AppColors.greyText,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 8),
-            Center(
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('I did it'),
-              ),
-            ),
-          ],
-        ),
-      ),
+  void _startYoga() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const _GentleYogaPage()),
     );
   }
 
@@ -175,7 +115,7 @@ class _InstantCalmScreenState extends State<InstantCalmScreen> {
                       title: 'Gentle Yoga',
                       text: 'Try simple yoga stretches to release tension and '
                           'reconnect with your body.',
-                      button: _pillButton('Start', _showYoga),
+                      button: _pillButton('Start', _startYoga),
                       footer: _duration('5 minutes'),
                     ),
                   ),
@@ -566,15 +506,21 @@ class _BreathingExercisePageState extends State<_BreathingExercisePage> {
                       child: const Text('Done'),
                     )
                   else ...[
-                    ElevatedButton(
-                      onPressed: _running ? _pause : _start,
-                      child: Text(_running ? 'Pause' : (_elapsed > 0 ? 'Resume' : 'Start')),
+                    SizedBox(
+                      width: 130,
+                      child: ElevatedButton(
+                        onPressed: _running ? _pause : _start,
+                        child: Text(_running ? 'Pause' : (_elapsed > 0 ? 'Resume' : 'Start')),
+                      ),
                     ),
                     if (_elapsed > 0) ...[
                       const SizedBox(width: 12),
-                      OutlinedButton(
-                        onPressed: _restart,
-                        child: const Text('Restart'),
+                      SizedBox(
+                        width: 130,
+                        child: OutlinedButton(
+                          onPressed: _restart,
+                          child: const Text('Restart'),
+                        ),
                       ),
                     ],
                   ],
@@ -583,6 +529,221 @@ class _BreathingExercisePageState extends State<_BreathingExercisePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+// ======================================================================
+// Gentle Yoga: 5 beginner poses, one per page, each with a picture.
+// Pictures in assets/images/ (e.g. assets/images/yoga_cat_cow.jpg).
+// If a picture is missing, a yoga icon is shown instead.
+// ======================================================================
+class _YogaPose {
+  final String name;
+  final String image;
+  final String howTo;
+  final String time;
+
+  const _YogaPose(this.name, this.image, this.howTo, this.time);
+}
+
+class _GentleYogaPage extends StatefulWidget {
+  const _GentleYogaPage();
+
+  @override
+  State<_GentleYogaPage> createState() => _GentleYogaPageState();
+}
+
+class _GentleYogaPageState extends State<_GentleYogaPage> {
+  static const _poses = [
+    _YogaPose(
+      'Tree Pose',
+      'assets/images/yoga_easy_pose.jpg',
+      'Stand tall, rest one foot on the inside of your other leg and raise your '
+          'hands above your head. Hold a wall if you need to, then switch legs.',
+      '1 minute',
+    ),
+    _YogaPose(
+      'Neck & Shoulder Rolls',
+      'assets/images/yoga_neck_rolls.jpg',
+      'Slowly roll your head in a gentle circle, then roll your shoulders '
+          'back and forward.',
+      '1 minute',
+    ),
+    _YogaPose(
+      'Seated Twist',
+      'assets/images/yoga_cat_cow.jpg',
+      'Sit cross-legged with a tall back. Place one hand behind you and gently '
+          'turn your upper body to that side. Breathe, then switch sides.',
+      '1 minute',
+    ),
+    _YogaPose(
+      'Standing Forward Fold',
+      'assets/images/yoga_forward_fold.png',
+      'Stand with your feet hip-width apart and slowly fold forward from your hips. '
+          'Bend your knees if you need to and let your head hang loose.',
+      '1 minute',
+    ),
+    _YogaPose(
+      "Child's Pose",
+      'assets/images/yoga_childs_pose.png',
+      'Kneel, sit back on your heels and fold forward until your forehead rests on the floor. '
+          'Let your arms relax beside your body with palms up, and breathe slowly.',
+      '1 minute',
+    ),
+  ];
+
+  final _pageCtrl = PageController();
+  int _index = 0;
+
+  bool get _isLast => _index == _poses.length - 1;
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  void _next() {
+    if (_isLast) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Well done! 5 minutes of gentle yoga 🌿'),
+          backgroundColor: AppColors.primaryGreen,
+        ),
+      );
+      Navigator.pop(context);
+      return;
+    }
+    _pageCtrl.nextPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _back() {
+    _pageCtrl.previousPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: LeafBackground(
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.topLeft,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new, size: 24),
+                onPressed: () => Navigator.maybePop(context),
+              ),
+            ),
+            Text('Gentle Yoga', style: AppTextStyles.heading.copyWith(fontSize: 32)),
+            const SizedBox(height: 4),
+            Text(
+              'Pose ${_index + 1} of ${_poses.length}',
+              style: AppTextStyles.subtitle.copyWith(fontSize: 15),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: PageView.builder(
+                controller: _pageCtrl,
+                itemCount: _poses.length,
+                onPageChanged: (i) => setState(() => _index = i),
+                itemBuilder: (context, i) => _poseCard(_poses[i]),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Little dots: which pose we are on
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_poses.length, (i) {
+                final active = i == _index;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  width: active ? 18 : 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: active ? AppColors.primaryGreen : AppColors.lightGreenBorder,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                );
+              }),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _index > 0 ? _back : null,
+                      child: const Text('Back'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _next,
+                      child: Text(_isLast ? 'Done' : 'Next'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Picture (or icon) + name + time + how to do it
+  Widget _poseCard(_YogaPose pose) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9F9F9),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: AppColors.lightGreenBorder, width: 1.5),
+              ),
+              child: Image.asset(
+                pose.image,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const Center(
+                  child: Icon(Icons.self_improvement, size: 120, color: AppColors.primaryGreen),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(pose.name, style: AppTextStyles.heading.copyWith(fontSize: 26)),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.timer_outlined, size: 18, color: AppColors.mediumGreen),
+              const SizedBox(width: 6),
+              Text(pose.time, style: GoogleFonts.inter(fontSize: 13)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            pose.howTo,
+            textAlign: TextAlign.center,
+            style: AppTextStyles.body.copyWith(fontSize: 15, height: 1.4),
+          ),
+        ],
       ),
     );
   }
