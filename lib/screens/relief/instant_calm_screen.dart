@@ -581,14 +581,14 @@ class _GentleYogaPageState extends State<_GentleYogaPage> {
     ),
     _YogaPose(
       'Standing Forward Fold',
-      'assets/images/yoga_forward_fold.png',
+      'assets/images/yoga_forward_fold.jpg',
       'Stand with your feet hip-width apart and slowly fold forward from your hips. '
           'Bend your knees if you need to and let your head hang loose.',
       '1 minute',
     ),
     _YogaPose(
       "Child's Pose",
-      'assets/images/yoga_childs_pose.png',
+      'assets/images/yoga_childs_pose.jpg',
       'Kneel, sit back on your heels and fold forward until your forehead rests on the floor. '
           'Let your arms relax beside your body with palms up, and breathe slowly.',
       '1 minute',
@@ -599,6 +599,20 @@ class _GentleYogaPageState extends State<_GentleYogaPage> {
   int _index = 0;
 
   bool get _isLast => _index == _poses.length - 1;
+
+  // Load all 5 pictures as soon as the page opens, so the next poses
+  // are already ready when the user taps Next.
+  bool _preloaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_preloaded) return;
+    _preloaded = true;
+    for (final pose in _poses) {
+      precacheImage(AssetImage(pose.image), context, onError: (_, __) {});
+    }
+  }
 
   @override
   void dispose() {
